@@ -1,4 +1,6 @@
 ﻿from abc import ABC, abstractmethod
+import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 import json
 import re
@@ -6,6 +8,27 @@ import re
 import httpx
 
 from app.core.config import 读取设置
+
+# ReAct 行的行首标记（容忍 **加粗** 与全角冒号）：
+#   思考: / 行动: / 输入: / 完成:
+_行标记模式 = re.compile(r"^\*{0,2}(思考|行动|输入|完成)\*{0,2}\s*[：:]\s*(.*)$")
+
+# 只匹配「标记 + 冒号」本身：定性时用它算出该跳过多少字符，
+# 不能用上面的整行模式——它的第二组是贪婪的 ``(.*)``，会把同行正文一起吞掉。
+_标记前缀模式 = re.compile(r"^\*{0,2}(思考|行动|输入|完成)\*{0,2}\s*[：:]\s*")
+
+# 打字机推送参数：把一次性拿到的大段文本切成小块，保证前端始终看到逐字效果
+_打字机分片 = 10
+_打字机间隔秒 = 0.012
+
+
+async def 逐块(文本: str, 每片: int = _打字机分片, 间隔: float = _打字机间隔秒) -> AsyncGenerator[str, None]:
+    """把整段文本切成小块逐块产出，模拟 LLM 的逐 token 输出节奏。"""
+    if not 文本:
+        return
+    for 起点 in range(0, len(文本), 每片):
+        yield 文本[起点 : 起点 + 每片]
+        await asyncio.sleep(间隔)
 
 
 def _解析工具入参(文本: str) -> dict:
@@ -37,12 +60,120 @@ class 模型回复:
     答案: str = ""
 
 
+@dataclass
+class 流式增量:
+    """一次决策过程中的增量片段。
+
+    类型：
+      thinking — 「思考:」行的内容片段
+      answer   — 「完成:」行及其后内容的片段
+      final    — 该步解析完成的权威结果（携带 模型回复）
+    """
+
+    类型: str
+    文本: str = ""
+    回复: 模型回复 | None = None
+
+
+class _流式ReAct解析:
+    """把尚未生成完的 ReAct 文本流切成「思考 / 答案」增量。
+
+    难点：一行刚开头时无法判断它是 ``思考:``/``完成:`` 标记行还是普通正文。
+    处理方式——先攒到能定性（该行已写完，或已积累 ``_定性阈值`` 个字符），
+    定性之后立刻把攒下的内容吐出，此后该行剩余内容随到随吐，真正逐 token 流出。
+    最终仍以 ``全文`` 走一遍静态解析得到权威结果，两者不一致时以权威结果为准。
+    """
+
+    _定性阈值 = 8  # 最长的标记形式 ``**思考：**`` 也在 8 字符以内
+
+    def __init__(self) -> None:
+        self.全文 = ""
+        self.已推送: dict[str, str] = {"thinking": "", "answer": ""}
+        self._行 = ""
+        self._行已吐 = 0
+        self._行定性 = False
+        self._段: str | None = None
+
+    def 推进(self, 增量: str) -> list[tuple[str, str]]:
+        self._行 += 增量
+        输出: list[tuple[str, str]] = []
+        while True:
+            if not self._行定性:
+                # 还没攒够、也没写完，先不吐，免得把半截标记混进正文
+                if "\n" not in self._行 and len(self._行.lstrip()) < self._定性阈值:
+                    break
+                self._定性()
+            if "\n" in self._行:
+                行, self._行 = self._行.split("\n", 1)
+                输出.extend(self._整行(行))
+                continue
+            if len(self._行) > self._行已吐:
+                输出.extend(self._吐出片段(self._行[self._行已吐 :]))
+                self._行已吐 = len(self._行)
+            break
+        return 输出
+
+    def 收尾(self) -> list[tuple[str, str]]:
+        if not self._行:
+            return []
+        输出: list[tuple[str, str]] = []
+        if not self._行定性:
+            self._定性()
+        输出.extend(self._整行(self._行))
+        self._行 = ""
+        return 输出
+
+    def _定性(self) -> None:
+        """判定当前行是标记行还是正文行；标记行只跳过「标记 + 冒号」，正文照吐。"""
+        匹配 = _标记前缀模式.match(self._行.strip())
+        if 匹配:
+            self._段 = 匹配.group(1)
+            前导 = len(self._行) - len(self._行.lstrip())
+            self._行已吐 = min(前导 + 匹配.end(), len(self._行))
+        self._行定性 = True
+
+    def _整行(self, 行: str) -> list[tuple[str, str]]:
+        self.全文 += 行 + "\n"
+        输出: list[tuple[str, str]] = []
+        if not self._行定性:
+            self._定性()
+        if self._行已吐 < len(行):
+            输出.extend(self._吐出片段(行[self._行已吐 :]))
+        输出.extend(self._吐出片段("\n"))  # 行尾换行也要吐，保证 Markdown 多行结构
+        self._行定性 = False
+        self._行已吐 = 0
+        return 输出
+
+    def _吐出片段(self, 片段: str) -> list[tuple[str, str]]:
+        if not 片段 or self._段 not in ("思考", "完成"):
+            return []
+        键 = "thinking" if self._段 == "思考" else "answer"
+        self.已推送[键] += 片段
+        return [(键, 片段)]
+
+
 class LLM提供者(ABC):
     名称 = "abstract"
 
     @abstractmethod
     async def 决策(self, 问题: str, 历史: list[dict], 观察: list[str]) -> 模型回复:
         """基于用户问题与已有观察给出下一步 ReAct 决策"""
+
+    async def 流式决策(
+        self, 问题: str, 历史: list[dict], 观察: list[str]
+    ) -> AsyncGenerator[流式增量, None]:
+        """逐步产出决策增量。
+
+        默认实现：先一次性决策，再把结果按小块"打字机"吐出，
+        保证规则引擎这类非流式提供者也能让前端看到逐字效果。
+        """
+        回复 = await self.决策(问题, 历史, 观察)
+        async for 块 in 逐块(回复.思考):
+            yield 流式增量("thinking", 块)
+        if 回复.完成 and 回复.答案:
+            async for 块 in 逐块(回复.答案):
+                yield 流式增量("answer", 块)
+        yield 流式增量("final", "", 回复)
 
 
 class 规则引擎提供者(LLM提供者):
@@ -186,10 +317,62 @@ class 规则引擎提供者(LLM提供者):
         )
 
 
+def _构造消息体(问题: str, 历史: list[dict], 观察: list[str]) -> list[dict]:
+    """拼 ReAct 提示词 + 历史 + 当前问题，供一次性请求与流式请求共用。"""
+    from app.agent.tools import 工具注册表
+
+    工具说明 = "\n".join(f"- {t.名称}: {t.描述}" for t in 工具注册表.全部())
+    if 观察:
+        观察文本 = "\n".join(观察[-3:])
+        提示词 = (
+            "你是 ReAct 智能体。你此前调用了工具，并已获得以下观察结果:\n"
+            f"{观察文本}\n"
+            "观察已经足够。现在禁止再调用任何工具，必须立即基于以上观察向用户给出最终回答。\n"
+            "严格按此格式回答:\n"
+            "思考: <一句话总结依据>\n"
+            "完成: <面向用户的完整、结构化中文回答>\n"
+            "最终答案质量要求：\n"
+            "- 必须完整、有实质内容，禁止以冒号、省略号或'等'字结尾而不展开\n"
+            "- 若使用'具体包括'/'以下几点'/'如下'等引导词，必须在其后立即列出至少一项具体内容\n"
+            "- 对于资料未明确记录的问题，直接回答'现有资料未明确记录'，不要追加无内容的引导词\n"
+            "- 回答使用 Markdown：需要强调处用 **粗体**，罗列多条时用 - 无序列表，出现代码/命令/技术名词时用 `行内代码`"
+        )
+    else:
+        提示词 = (
+            "你是 ReAct 智能体。可用工具:\n"
+            f"{工具说明}\n"
+            "工具选择规则:\n"
+            "- 若用户询问于翔堃会什么技能、AI技能、IT优势、擅长什么，必须使用 query_skills 获取技能清单后再组织答案\n"
+            "- 若用户消息本身是一段完整的职位描述（包含岗位职责/任职要求/技能清单等），必须使用 analyze_jd，并把 JD 全文原样放入 jd_text 参数\n"
+            "- 若用户只是询问岗位方向（如「我适合什么岗位」），才使用 match_job\n"
+            "- 若用户询问做过哪些项目、项目细节，使用 search_projects\n"
+            "请严格按以下格式之一回答（注意：无论是否调用工具，都必须【先】输出 思考: 行）:\n"
+            "思考: <分析>\n行动: <工具名>\n输入: <参数JSON>\n"
+            "或\n思考: <分析>\n完成: <最终答案>\n"
+            "输入参数必须是该工具对应的 JSON 对象，严禁嵌套：\n"
+            "- query_skills: {\"query\": \"<可选方向关键词，如 AI/前端/后端>\"}\n"
+            "- analyze_jd: {\"jd_text\": \"<职位描述全文>\"}\n"
+            "- search_projects: {\"query\": \"<关键词>\"}\n"
+            "- match_job: {\"role\": \"<岗位方向>\"}\n"
+            "- calculator: {\"expression\": \"<表达式>\"}\n"
+            "- current_time / query_stats: {}\n"
+            "最终答案质量要求：\n"
+            "- 必须完整、有实质内容，禁止以冒号、省略号或'等'字结尾而不展开\n"
+            "- 若使用'具体包括'/'以下几点'/'如下'等引导词，必须在其后立即列出至少一项具体内容\n"
+            "- 对于资料未明确记录的问题，直接回答'现有资料未明确记录'，不要追加无内容的引导词\n"
+            "- 每次回答都必须先输出 思考: 行（即使是直接回答，也要写明判断依据），禁止只写 完成: 而省略 思考:\n"
+            "- 回答使用 Markdown：需要强调处用 **粗体**，罗列多条时用 - 无序列表，出现代码/命令/技术名词时用 `行内代码`"
+        )
+    消息体 = [{"role": "system", "content": 提示词}, *历史]
+    if not any(m.get("role") == "user" for m in 历史[-1:]):
+        消息体.append({"role": "user", "content": 问题})
+    return 消息体
+
+
 class OpenAI兼容提供者(LLM提供者):
     """OpenAI 兼容 /chat/completions 接口的实现。
 
-    当前对接硅基流动（https://api.siliconflow.cn/v1），
+    当前对接硅基流动（https://api.siliconflow.cn/v1，DeepSeek 系列模型同接口），
     也可通过 .env 的 模型接口地址 / 模型密钥 / 模型名称 换成任意兼容服务。
     """
 
@@ -200,8 +383,10 @@ class OpenAI兼容提供者(LLM提供者):
         self.接口地址 = (设置.模型接口地址 or "https://api.siliconflow.cn/v1").rstrip("/")
         self.密钥 = 设置.模型密钥
         self.模型 = 设置.模型名称
+        self._最近错误: str = ""
 
-    _标记模式 = re.compile(r"^\*{0,2}(思考|行动|输入|完成)\*{0,2}\s*[：:]\s*(.*)$")
+    # 复用模块级 行标记模式，保证流式解析与整段解析两套逻辑判定一致
+    _标记模式 = _行标记模式
 
     @staticmethod
     def _解析文本(文本: str) -> 模型回复:
@@ -258,77 +443,42 @@ class OpenAI兼容提供者(LLM提供者):
         return 回复
 
     async def 决策(self, 问题: str, 历史: list[dict], 观察: list[str]) -> 模型回复:
-        from app.agent.tools import 工具注册表
-
         # 规则前置：flash 模型对工具选择提示词遵循不稳定，对高频意图直接选定工具
-        小写 = 问题.lower()
-        if not 观察:
-            if any(k in 小写 for k in ("技能", "优势", "擅长", "会什么", "掌握什么", "ai技能", "it优势")):
-                return 模型回复(
-                    思考="用户询问技能或优势，直接调用 query_skills 获取清单",
-                    动作="query_skills",
-                    动作输入={},
-                )
-            if any(k in 小写 for k in ("项目", "作品", "做过", "搭建过", "开发过", "介绍")):
-                return 模型回复(
-                    思考="用户询问项目经历，直接调用 search_projects 检索知识库",
-                    动作="search_projects",
-                    动作输入={"query": 问题},
-                )
+        规则决策 = self._规则前置(问题, 观察)
+        if 规则决策 is not None:
+            return 规则决策
 
-        工具说明 = "\n".join(f"- {t.名称}: {t.描述}" for t in 工具注册表.全部())
+        消息体 = _构造消息体(问题, 历史, 观察)
+        内容 = await self._一次性文本(消息体)
+        return self._解析文本(内容)
+
+    @staticmethod
+    def _规则前置(问题: str, 观察: list[str]) -> 模型回复 | None:
+        """高频意图确定性短路：跳过一次 LLM 往返，直接选定工具。"""
         if 观察:
-            观察文本 = "\n".join(观察[-3:])
-            提示词 = (
-                "你是 ReAct 智能体。你此前调用了工具，并已获得以下观察结果:\n"
-                f"{观察文本}\n"
-                "观察已经足够。现在禁止再调用任何工具，必须立即基于以上观察向用户给出最终回答。\n"
-                "严格按此格式回答:\n"
-                "思考: <一句话总结依据>\n"
-                "完成: <面向用户的完整、结构化中文回答>\n"
-                "最终答案质量要求：\n"
-                "- 必须完整、有实质内容，禁止以冒号、省略号或'等'字结尾而不展开\n"
-                "- 若使用'具体包括'/'以下几点'/'如下'等引导词，必须在其后立即列出至少一项具体内容\n"
-                "- 对于资料未明确记录的问题，直接回答'现有资料未明确记录'，不要追加无内容的引导词"
+            return None
+        小写 = 问题.lower()
+        if any(k in 小写 for k in ("技能", "优势", "擅长", "会什么", "掌握什么", "ai技能", "it优势")):
+            return 模型回复(
+                思考="用户询问技能或优势，直接调用 query_skills 获取清单",
+                动作="query_skills",
+                动作输入={},
             )
-        else:
-            提示词 = (
-                "你是 ReAct 智能体。可用工具:\n"
-                f"{工具说明}\n"
-                "工具选择规则:\n"
-                "- 若用户询问于翔堃会什么技能、AI技能、IT优势、擅长什么，必须使用 query_skills 获取技能清单后再组织答案\n"
-                "- 若用户消息本身是一段完整的职位描述（包含岗位职责/任职要求/技能清单等），必须使用 analyze_jd，并把 JD 全文原样放入 jd_text 参数\n"
-                "- 若用户只是询问岗位方向（如「我适合什么岗位」），才使用 match_job\n"
-                "- 若用户询问做过哪些项目、项目细节，使用 search_projects\n"
-                "请严格按以下格式之一回答（注意：无论是否调用工具，都必须【先】输出 思考: 行）:\n"
-                "思考: <分析>\n行动: <工具名>\n输入: <参数JSON>\n"
-                "或\n思考: <分析>\n完成: <最终答案>\n"
-                "输入参数必须是该工具对应的 JSON 对象，严禁嵌套：\n"
-                "- query_skills: {\"query\": \"<可选方向关键词，如 AI/前端/后端>\"}\n"
-                "- analyze_jd: {\"jd_text\": \"<职位描述全文>\"}\n"
-                "- search_projects: {\"query\": \"<关键词>\"}\n"
-                "- match_job: {\"role\": \"<岗位方向>\"}\n"
-                "- calculator: {\"expression\": \"<表达式>\"}\n"
-                "- current_time / query_stats: {}\n"
-                "最终答案质量要求：\n"
-                "- 必须完整、有实质内容，禁止以冒号、省略号或'等'字结尾而不展开\n"
-                "- 若使用'具体包括'/'以下几点'/'如下'等引导词，必须在其后立即列出至少一项具体内容\n"
-                "- 对于资料未明确记录的问题，直接回答'现有资料未明确记录'，不要追加无内容的引导词\n"
-                "- 每次回答都必须先输出 思考: 行（即使是直接回答，也要写明判断依据），禁止只写 完成: 而省略 思考:"
+        if any(k in 小写 for k in ("项目", "作品", "做过", "搭建过", "开发过", "介绍")):
+            return 模型回复(
+                思考="用户询问项目经历，直接调用 search_projects 检索知识库",
+                动作="search_projects",
+                动作输入={"query": 问题},
             )
-        消息体 = [{"role": "system", "content": 提示词}, *历史]
-        if not any(m.get("role") == "user" for m in 历史[-1:]):
-            消息体.append({"role": "user", "content": 问题})
+        return None
+
+    async def _一次性文本(self, 消息体: list[dict]) -> str:
+        """非流式请求，返回完整消息内容（一次性决策与降级兜底用）。"""
         async with httpx.AsyncClient(timeout=读取设置().Agent单步超时秒) as 客户端:
             响应 = await 客户端.post(
                 f"{self.接口地址}/chat/completions",
                 headers={"Authorization": f"Bearer {self.密钥}"},
-                json={
-                    "model": self.模型,
-                    "messages": 消息体,
-                    "temperature": 0.2,
-                    "max_tokens": 2048,
-                },
+                json=self._请求体(消息体),
             )
             if 响应.status_code >= 400:
                 # 带上响应体，方便定位余额不足(402)/鉴权失败(401)/模型不存在(404)等问题
@@ -337,7 +487,123 @@ class OpenAI兼容提供者(LLM提供者):
             if not 内容.strip():
                 # 部分推理模型只把内容放进 reasoning_content
                 内容 = (响应.json()["choices"][0]["message"].get("reasoning_content") or "").strip()
-        return self._解析文本(内容)
+            return 内容
+
+    def _请求体(self, 消息体: list[dict], 流式: bool = False) -> dict:
+        return {
+            "model": self.模型,
+            "messages": 消息体,
+            "temperature": 0.2,
+            "max_tokens": 2048,
+            "stream": 流式,
+        }
+
+    async def _读取流式文本(self, 消息体: list[dict]) -> AsyncGenerator[tuple[str, str], None]:
+        """按 DeepSeek/OpenAI 兼容的 SSE 规范读取流式增量。
+
+        DeepSeek 文档的约定（https://api-docs.deepseek.com/zh-cn/api/create-chat-completion）：
+        ``stream: true`` 时服务端以 SSE 推送消息增量，每个 ``data:`` 帧是一个
+        chat completion chunk，``choices[0].delta`` 里是本次增量，消息流以
+        ``data: [DONE]`` 结束；推理模型的思维链放在 ``delta.reasoning_content``。
+        这里把每个帧翻译为 ``(来源, 片段)``，来源为 content / reasoning。
+        """
+        async with httpx.AsyncClient(timeout=读取设置().Agent单步超时秒) as 客户端:
+            async with 客户端.stream(
+                "POST",
+                f"{self.接口地址}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.密钥}",
+                    "Accept": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                },
+                json=self._请求体(消息体, 流式=True),
+            ) as 响应:
+                if 响应.status_code >= 400:
+                    错误体 = await 响应.aread()
+                    raise RuntimeError(f"LLM 接口返回 {响应.status_code}: {错误体[:300]!r}")
+                async for 原始行 in 响应.aiter_lines():
+                    行 = 原始行.strip()
+                    if not 行 or not 行.startswith("data:"):
+                        continue
+                    载荷 = 行[5:].strip()
+                    if not 载荷 or 载荷 == "[DONE]":
+                        break
+                    try:
+                        帧 = json.loads(载荷)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(帧, dict) and 帧.get("error"):
+                        raise RuntimeError(f"LLM 流式错误：{str(帧['error'])[:200]}")
+                    选项 = (帧.get("choices") if isinstance(帧, dict) else None) or []
+                    if not 选项:
+                        # usage 统计帧（stream_options.include_usage）里没有 choices
+                        continue
+                    增量 = 选项[0].get("delta") or {}
+                    正文片段 = 增量.get("content") or ""
+                    推理片段 = 增量.get("reasoning_content") or ""
+                    if 正文片段:
+                        yield ("content", 正文片段)
+                    if 推理片段:
+                        yield ("reasoning", 推理片段)
+
+    async def 流式决策(
+        self, 问题: str, 历史: list[dict], 观察: list[str]
+    ) -> AsyncGenerator[流式增量, None]:
+        """边生成边推送：思考段与最终答案都按 SSE 增量吐出。"""
+        规则决策 = self._规则前置(问题, 观察)
+        if 规则决策 is not None:
+            # 确定性短路的结果同样按打字机节奏吐出，避免整段突然冒出来
+            async for 块 in 逐块(规则决策.思考):
+                yield 流式增量("thinking", 块)
+            yield 流式增量("final", "", 规则决策)
+            return
+
+        消息体 = _构造消息体(问题, 历史, 观察)
+        解析 = _流式ReAct解析()
+        try:
+            async for 来源, 片段 in self._读取流式文本(消息体):
+                if 来源 == "reasoning":
+                    # 推理模型的思维链直接作为思考过程推送
+                    解析.已推送["thinking"] += 片段
+                    yield 流式增量("thinking", 片段)
+                    continue
+                for 类型, 增量 in 解析.推进(片段):
+                    yield 流式增量(类型, 增量)
+        except Exception as 错误:
+            # 流式失败（401/402/网络错误等）时退回一次性决策，让调用方照常拿到结果
+            self._最近错误 = str(错误)
+            for 类型, 增量 in 解析.收尾():
+                yield 流式增量(类型, 增量)
+            try:
+                回复 = await self.决策(问题, 历史, 观察)
+            except Exception as 致命:
+                raise 致命 from 错误
+            yield 流式增量("final", "", 回复)
+            return
+
+        for 类型, 增量 in 解析.收尾():
+            yield 流式增量(类型, 增量)
+
+        最终 = self._解析文本(解析.全文)
+        async for 块 in self._补齐答案(最终, 解析.已推送["answer"]):
+            yield 流式增量("answer", 块)
+        yield 流式增量("final", "", 最终)
+
+    async def _补齐答案(self, 最终: 模型回复, 已推送: str) -> AsyncGenerator[str, None]:
+        """模型没写「完成:」标记（纯自由文本）时，静态解析仍会得到答案，
+        但流式阶段没有推送过它，这里按打字机补上，避免答案整段突然出现。"""
+        if not (最终.完成 and 最终.答案):
+            return
+        if 最终.答案 == 已推送:
+            return
+        if 已推送 and 最终.答案.startswith(已推送):
+            剩余 = 最终.答案[len(已推送) :]
+            async for 块 in 逐块(剩余):
+                yield 块
+            return
+        if not 已推送:
+            async for 块 in 逐块(最终.答案):
+                yield 块
 
 
 def 创建提供者() -> LLM提供者:

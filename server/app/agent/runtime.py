@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
-from app.agent.provider import 创建提供者, 规则引擎提供者, 模型回复
+from app.agent.provider import 创建提供者, 规则引擎提供者, 模型回复, 流式增量, 逐块
 from app.agent.tools import 工具注册表
 from app.core.config import 读取设置
 
@@ -45,17 +45,41 @@ class Agent运行时:
             self._降级引擎 = 规则引擎提供者()
         return self._降级引擎
 
-    async def _决策一步(
-        self, 问题: str, 对话历史: list[dict], 观察: list[str]
-    ) -> 模型回复:
-        """优先用配置的远程 LLM；若已确认其不可用，则直接用内置规则引擎。"""
+    async def _取生成器(self, 问题: str, 对话历史: list[dict], 观察: list[str]):
+        """拿到本次决策的增量生成器；远程不可用时直接用规则引擎。"""
         if self._远程已失败:
-            return await self._降级().决策(问题, 对话历史, 观察)
+            return self._降级().流式决策(问题, 对话历史, 观察)
         try:
-            return await self.提供者.决策(问题, 对话历史, 观察)
+            return self.提供者.流式决策(问题, 对话历史, 观察)
         except Exception:
             self._远程已失败 = True
-            return await self._降级().决策(问题, 对话历史, 观察)
+            return self._降级().流式决策(问题, 对话历史, 观察)
+
+    async def _降级推送(
+        self, 问题: str, 对话历史: list[dict], 观察: list[str], 已推送: set[str]
+    ) -> AsyncGenerator[流式增量, None]:
+        """规则引擎兜底：整段决策后，把还没吐过的部分按打字机节奏补上。"""
+        try:
+            回复 = await asyncio.wait_for(
+                self._降级().决策(问题, 对话历史, 观察),
+                timeout=self.设置.Agent单步超时秒,
+            )
+        except Exception:
+            return
+        if "thinking" not in 已推送 and 回复.思考:
+            async for 块 in 逐块(回复.思考):
+                yield 流式增量("thinking", 块)
+        if "answer" not in 已推送 and 回复.完成 and 回复.答案:
+            async for 块 in 逐块(回复.答案):
+                yield 流式增量("answer", 块)
+        yield 流式增量("final", "", 回复)
+
+    @staticmethod
+    async def _安全关闭(生成器) -> None:
+        try:
+            await 生成器.aclose()
+        except Exception:
+            pass
 
     async def 流式运行(
         self, 会话id: int, 问题: str, 历史: list[dict], 落盘
@@ -68,29 +92,63 @@ class Agent运行时:
 
         for 步 in range(1, self.设置.Agent最大步数 + 1):
             开始 = time.perf_counter()
+            回复: 模型回复 | None = None
+            已推送: set[str] = set()
+
+            # 一次决策 = 消费一个增量生成器：先把思考/答案片段转发给前端，
+            # 最后拿到 definitive 的 模型回复 再决定是调用工具还是收尾。
+            生成器 = None
             try:
-                回复 = await asyncio.wait_for(
-                    self._决策一步(问题, 对话历史, 观察),
-                    timeout=self.设置.Agent单步超时秒,
-                )
-            except asyncio.TimeoutError:
-                # 超时同样视为远程 LLM 不可用：标记后用规则引擎再试一次，仍失败才终止。
+                生成器 = await self._取生成器(问题, 对话历史, 观察)
+                while True:
+                    剩余 = self.设置.Agent单步超时秒 - (time.perf_counter() - 开始)
+                    if 剩余 <= 0:
+                        raise TimeoutError("单步超时")
+                    try:
+                        增量 = await asyncio.wait_for(生成器.__anext__(), timeout=剩余)
+                    except StopAsyncIteration:
+                        break
+                    if 增量.类型 in ("thinking", "answer"):
+                        已推送.add(增量.类型)
+                        yield 步骤事件(
+                            f"{增量.类型}_delta", {"delta": 增量.文本, "step": 步}
+                        )
+                        continue
+                    回复 = 增量.回复
+                    if 回复 is not None:
+                        await self._安全关闭(生成器)
+                        break
+            except Exception as 错误:
+                # 超时同样视为远程 LLM 不可用：改用规则引擎再试一次，仍失败才终止。
                 # 避免把 402/网络异常等原始错误抛给用户。
+                await self._安全关闭(生成器)
                 self._远程已失败 = True
-                try:
-                    回复 = await asyncio.wait_for(
-                        self._降级().决策(问题, 对话历史, 观察),
-                        timeout=self.设置.Agent单步超时秒,
-                    )
-                except Exception:
+                降级回复: 模型回复 | None = None
+                async for 增量 in self._降级推送(问题, 对话历史, 观察, 已推送):
+                    if 增量.类型 == "final":
+                        降级回复 = 增量.回复
+                    else:
+                        yield 步骤事件(
+                            f"{增量.类型}_delta", {"delta": 增量.文本, "step": 步}
+                        )
+                if 降级回复 is None:
                     yield 步骤事件("error", {"message": f"第 {步} 步决策超时，已终止"})
                     await 落盘(步, "决策超时", None, None, "", "error", (time.perf_counter() - 开始) * 1000)
                     return
-            except Exception as 错误:
-                # 能走到这里说明规则引擎自身也出错，此时才向用户报错
-                yield 步骤事件("error", {"message": f"提供者异常降级: {错误}"})
-                await 落盘(步, "提供者异常", None, None, str(错误), "error", (time.perf_counter() - 开始) * 1000)
-                return
+                回复 = 降级回复
+
+            if 回复 is None:
+                # 生成器既没给 final 也没抛错（异常上游才会这样），兜底再决策一次，避免 None 崩掉
+                self._远程已失败 = True
+                async for 增量 in self._降级推送(问题, 对话历史, 观察, 已推送):
+                    if 增量.类型 == "final":
+                        回复 = 增量.回复
+                    else:
+                        yield 步骤事件(f"{增量.类型}_delta", {"delta": 增量.文本, "step": 步})
+                if 回复 is None:
+                    yield 步骤事件("error", {"message": f"第 {步} 步未产出有效决策，已终止"})
+                    await 落盘(步, "决策为空", None, None, "", "error", (time.perf_counter() - 开始) * 1000)
+                    return
 
             if 回复.完成 or not 回复.动作:
                 耗时 = round((time.perf_counter() - 开始) * 1000, 2)

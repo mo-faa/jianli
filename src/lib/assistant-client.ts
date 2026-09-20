@@ -1,12 +1,14 @@
 import { 助手文案 } from "./assistant-text";
+import { 渲染Markdown } from "./markdown";
 
 /**
  * 小堃のAi助手 前端客户端。
  * 通过 /api/agent 代理对接 Python RAG 智能体：
  *   1) 建会话 POST /api/agent/api/chat/conversations
  *   2) 流式对话 POST /api/agent/api/chat/conversations/{id}/stream
- * 解析 SSE 事件（thinking / action / observation / answer / error），
- * 把助手的思考过程折叠展示，并把最终答案与来源引用渲染出来。
+ * 解析 SSE 事件（thinking / thinking_delta / action / observation /
+ * answer_delta / answer / error），思考过程按片段边到边显示、
+ * 正文按 Markdown 增量渲染，并用最终的 answer 事件做一次校正。
  * 不依赖任何已删除的 lib/chat 模块。
  */
 
@@ -53,7 +55,7 @@ export function 创建助手对话(元素: 元素集合): void {
     return { 气泡, 内容 };
   };
 
-  const 添加思考过程 = (): HTMLElement => {
+  const 添加思考过程 = (): HTMLDetailsElement => {
     const 详情 = document.createElement("details");
     详情.className = "trace-group";
     const 摘要 = document.createElement("summary");
@@ -62,12 +64,18 @@ export function 创建助手对话(元素: 元素集合): void {
     return 详情;
   };
 
-  const 添加过程行 = (详情: HTMLElement, 文本: string): void => {
+  const 写Markdown = (容器: HTMLElement, 文本: string): void => {
+    容器.classList.add("md-body");
+    容器.innerHTML = 渲染Markdown(文本);
+  };
+
+  const 添加过程行 = (详情: HTMLElement, 文本: string): HTMLElement => {
     const 行 = document.createElement("div");
     行.className = "trace-line";
     行.textContent = 文本;
     详情.appendChild(行);
     滚动到底部();
+    return 行;
   };
 
   const 添加引用 = (容器: HTMLElement, 引用: unknown[]): void => {
@@ -141,7 +149,7 @@ export function 创建助手对话(元素: 元素集合): void {
 
     if (会话id === null) 会话id = await 建会话();
     if (会话id === null) {
-      添加气泡("assistant").内容.textContent = 助手文案.状态.后端离线;
+      写Markdown(添加气泡("assistant").内容, 助手文案.状态.后端离线);
       return;
     }
 
@@ -151,8 +159,45 @@ export function 创建助手对话(元素: 元素集合): void {
     const { 气泡, 内容 } = 添加气泡("assistant");
     const 过程 = 添加思考过程();
     气泡.appendChild(过程);
-    let 首字 = true;
+    const 等待行 = 添加过程行(过程, 助手文案.状态.思考中);
+    const 思考行表 = new Map<number, HTMLElement>();
+    let 答案文本 = "";
     let 过程已有内容 = false;
+    let 渲染排队 = false;
+    let 答案已定稿 = false;
+
+    const 清等待行 = (): void => {
+      if (等待行.isConnected) 等待行.remove();
+    };
+
+    const 渲染答案 = (流式中 = true): void => {
+      写Markdown(内容, 答案文本);
+      内容.classList.toggle("is-streaming", 流式中);
+      滚动到底部();
+    };
+
+    // 每个 SSE 片段都重排一次 DOM 太浪费，合并到一帧里渲染；
+    // 收到权威答案后 答案已定稿 复位，避免排在队列里的帧把打字光标又加回来。
+    const 计划渲染 = (): void => {
+      if (渲染排队) return;
+      渲染排队 = true;
+      requestAnimationFrame(() => {
+        渲染排队 = false;
+        if (答案已定稿) return;
+        渲染答案(true);
+      });
+    };
+
+    const 取思考行 = (步: number): HTMLElement => {
+      const 已有 = 思考行表.get(步);
+      if (已有) return 已有;
+      const 行 = 添加过程行(过程, "💡 思考：");
+      思考行表.set(步, 行);
+      过程已有内容 = true;
+      // 推理开始流动时自动展开面板，否则用户看不到逐句出现的思考过程
+      过程.open = true;
+      return 行;
+    };
 
     控制器 = new AbortController();
     try {
@@ -166,33 +211,55 @@ export function 创建助手对话(元素: 元素集合): void {
 
       await 读取流(响应, (事件) => {
         switch (事件.type) {
-          case "thinking":
-            添加过程行(过程, `💡 思考：${事件.thought ?? ""}`);
-            过程已有内容 = true;
+          case "thinking": {
+            const 文本 = String(事件.thought ?? "");
+            if (!文本) break;
+            清等待行();
+            // 权威文本：覆盖同一推理步此前由增量片段拼出的那一行
+            取思考行(Number(事件.step ?? 0)).textContent = `💡 思考：${文本}`;
+            滚动到底部();
             break;
+          }
+          case "thinking_delta": {
+            const 片段 = String(事件.delta ?? "");
+            if (!片段) break;
+            清等待行();
+            const 行 = 取思考行(Number(事件.step ?? 0));
+            行.textContent += 片段;
+            滚动到底部();
+            break;
+          }
           case "action": {
             const 名 = 工具中文名[String(事件.tool)] ?? String(事件.tool);
+            清等待行();
             添加过程行(过程, `🔧 调用：${名}`);
             过程已有内容 = true;
             break;
           }
           case "observation": {
             const 输出 = typeof 事件.output === "string" ? 事件.output : "";
+            清等待行();
             添加过程行(过程, `👀 观察：${输出.slice(0, 200)}${输出.length > 200 ? "…" : ""}`);
             if (Array.isArray(事件.citations)) 添加引用(过程, 事件.citations as unknown[]);
             过程已有内容 = true;
             break;
           }
-          case "answer":
-            if (首字) {
-              内容.textContent = "";
-              首字 = false;
-            }
-            内容.textContent += String(事件.answer ?? "");
+          case "answer_delta": {
+            答案文本 += String(事件.delta ?? "");
+            清等待行();
+            计划渲染();
+            break;
+          }
+          case "answer": {
+            // 权威答案：以它为准重渲染一次，避免任何增量拼接误差留在页面上
+            答案文本 = String(事件.answer ?? "");
+            答案已定稿 = true;
+            清等待行();
+            渲染答案(false);
             // 每轮都保证"助手的思考过程"面板非空：有推理则显示推理，纯直答无推理则注明未调工具
             if (!过程已有内容) {
               if (事件.thought) {
-                添加过程行(过程, `💡 思考：${String(事件.thought)}`);
+                取思考行(Number(事件.step ?? 0)).textContent = `💡 思考：${String(事件.thought)}`;
               } else {
                 添加过程行(过程, "（本次为模型直接回答，未调用工具）");
               }
@@ -200,18 +267,28 @@ export function 创建助手对话(元素: 元素集合): void {
             }
             滚动到底部();
             break;
+          }
           case "error":
-            内容.textContent = String(事件.message ?? 助手文案.状态.网络中断);
+            答案已定稿 = true;
+            清等待行();
+            内容.classList.remove("is-streaming");
+            写Markdown(内容, String(事件.message ?? 助手文案.状态.网络中断));
             break;
         }
       });
     } catch (错误) {
       if (错误 instanceof DOMException && 错误.name === "AbortError") {
-        内容.textContent += "\n（已停止）";
+        答案文本 += "\n\n（已停止）";
+        答案已定稿 = true;
+        渲染答案(false);
       } else {
-        内容.textContent = 助手文案.状态.网络中断;
+        答案已定稿 = true;
+        写Markdown(内容, 助手文案.状态.网络中断);
       }
     } finally {
+      清等待行();
+      答案已定稿 = true;
+      内容.classList.remove("is-streaming");
       控制器 = null;
       设生成中(false);
       滚动到底部();
@@ -246,8 +323,7 @@ export function 创建助手对话(元素: 元素集合): void {
       return;
     }
     元素.对话容器.innerHTML = "";
-    const 初始 = 添加气泡("assistant");
-    初始.内容.textContent = 助手文案.问候;
+    写Markdown(添加气泡("assistant").内容, 助手文案.问候);
     会话id = null;
     确认清空 = false;
     元素.清空按钮.textContent = 助手文案.清空记录;

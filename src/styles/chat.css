@@ -215,6 +215,160 @@
   border-color: rgba(255, 90, 120, 0.5);
 }
 
+/* ---------- 助手正文 Markdown 排版 ---------- */
+/* .bubble 默认 white-space: pre-wrap（给纯文本气泡保留换行），
+   Markdown 容器改回 normal，避免 HTML 源码换行被当成可见空行。 */
+.md-body {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.md-body > :first-child {
+  margin-top: 0;
+}
+
+.md-body > :last-child {
+  margin-bottom: 0;
+}
+
+.md-body p {
+  margin: 0 0 8px;
+}
+
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4,
+.md-body h5,
+.md-body h6 {
+  margin: 12px 0 6px;
+  color: #eaffff;
+  line-height: 1.4;
+}
+
+.md-body h1 { font-size: 16px; }
+.md-body h2 { font-size: 15px; }
+.md-body h3,
+.md-body h4,
+.md-body h5,
+.md-body h6 { font-size: 14px; }
+
+.md-body ul,
+.md-body ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+/* 全局 reset 去掉了列表符号，这里补回来 */
+.md-body ul {
+  list-style: disc;
+}
+
+.md-body ol {
+  list-style: decimal;
+}
+
+.md-body ul ul {
+  list-style: circle;
+}
+
+.md-body li {
+  margin: 2px 0;
+}
+
+.md-body li > p {
+  margin: 0 0 4px;
+}
+
+.md-body strong {
+  color: #eaffff;
+}
+
+.md-body em {
+  color: #d9d0ff;
+}
+
+.md-body a {
+  color: var(--neon-cyan, #00f0ff);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.md-body code {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  border-radius: 5px;
+  color: #8ef6ff;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+}
+
+.md-body pre {
+  background: rgba(10, 8, 22, 0.75);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 8px;
+  margin: 0 0 8px;
+  overflow-x: auto;
+  padding: 10px 12px;
+}
+
+.md-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #c8f6ff;
+  font-size: 0.9em;
+  line-height: 1.65;
+}
+
+.md-body blockquote {
+  border-left: 3px solid rgba(168, 85, 255, 0.6);
+  color: var(--darkslate-200, #c9c9c9);
+  margin: 0 0 8px;
+  padding: 2px 0 2px 10px;
+}
+
+.md-body hr {
+  border: none;
+  border-top: 1px solid rgba(168, 85, 255, 0.3);
+  margin: 10px 0;
+}
+
+.md-body .md-table {
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin: 0 0 8px;
+  width: 100%;
+}
+
+.md-body .md-table th,
+.md-body .md-table td {
+  border: 1px solid rgba(168, 85, 255, 0.3);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.md-body .md-table th {
+  background: rgba(168, 85, 255, 0.12);
+  color: #eaffff;
+}
+
+/* 流式生成中的打字机光标 */
+.md-body.is-streaming > :last-child::after {
+  content: "▌";
+  color: var(--neon-cyan, #00f0ff);
+  margin-left: 1px;
+  animation: mdCaret 1s steps(1) infinite;
+}
+
+@keyframes mdCaret {
+  50% {
+    opacity: 0;
+  }
+}
+
 /* ---------- 示例问题 ---------- */
 .chat-examples {
   padding: 10px 14px;
@@ -278,6 +432,10 @@
 /* 尊重系统「减少动态效果」偏好 */
 @media (prefers-reduced-motion: reduce) {
   .bubble.typing span {
+    animation: none;
+  }
+
+  .md-body.is-streaming > :last-child::after {
     animation: none;
   }
 }
