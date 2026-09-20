@@ -18,7 +18,7 @@ export const SITE = {
     timezone: "Asia/Shanghai",
   },
   links: {
-    github: "https://github.com/XuanRuiMu/XuanRuiMuGeRenJianLi",
+    github: "https://github.com/mo-faa/jianli",
     email: "3062949899@qq.com",
     game: "/game",
     chat: "/chat",
