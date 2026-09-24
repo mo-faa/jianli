@@ -4,10 +4,10 @@
 
 **2026 届计算机本科 · 现居天津（静海）· 随时到岗**
 
-![求职状态](https://img.shields.io/badge/求职状态-开放机会-2ea44f?style=flat-square)
-![学历](https://img.shields.io/badge/学历-2026届计算机本科-blueviolet?style=flat-square)
-![到岗](https://img.shields.io/badge/到岗-随时（天津本地）-blue?style=flat-square)
-![在线演示](https://img.shields.io/badge/在线演示-已上线可访问-brightgreen?style=flat-square)
+![求职状态](https://img.shields.io/badge/%E6%B1%82%E8%81%8C%E7%8A%B6%E6%80%81-%E5%BC%80%E6%94%BE%E6%9C%BA%E4%BC%9A-2ea44f?style=flat-square)
+![学历](https://img.shields.io/badge/%E5%AD%A6%E5%8E%86-2026%E5%B1%8A%E8%AE%A1%E7%AE%97%E6%9C%BA%E6%9C%AC%E7%A7%91-blueviolet?style=flat-square)
+![到岗](https://img.shields.io/badge/%E5%88%B0%E5%B2%97-%E9%9A%8F%E6%97%B6%EF%BC%88%E5%A4%A9%E6%B4%A5%E6%9C%AC%E5%9C%B0%EF%BC%89-blue?style=flat-square)
+![在线演示](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E6%BC%94%E7%A4%BA-%E5%B7%B2%E4%B8%8A%E7%BA%BF%E5%8F%AF%E8%AE%BF%E9%97%AE-brightgreen?style=flat-square)
 
 > 我能把一段**模糊的业务需求**拆成有序步骤，用 AI Agent + 工具编排把它跑通、上线，并让它**挂得住**（降级、容错、可追溯）。
 > 下面每一个能力，都配了**现在就能点开的链接**或**代码位置**——不用等我解释，您先验证。
