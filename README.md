@@ -85,7 +85,7 @@
 
 | JD 常见要求 | 我的对应证据 | 在哪验证 |
 | :--- | :--- | :--- |
-| 测试用例 / 自动化 | 毕设 **366 个 JUnit 5 + Mockito 用例**；Java 匹配服务 3 个测试类（控制器 MockMvc、限流、规则引擎） | `server-java/src/test/java/dev/yuxiangkun/matcher/` |
+| 测试用例 / 自动化 | 毕设 **362 个 JUnit 5 + Mockito 用例**（实测统计）；Java 匹配服务 3 个测试类（控制器 MockMvc、限流、规则引擎） | `server-java/src/test/java/dev/yuxiangkun/matcher/` |
 | 服务部署 / 运维 | 腾讯云 Windows Server 2022 部署：Astro SSR 占 :80、uvicorn 占 :8000、MySQL 8，计划任务守护自愈 | 站点 24h 在线；`启动总控.py` |
 | 故障排查 | 后端启动即自检（密钥、模型地址、数据库连通性），失败直接给出可执行的中文修复提示 | `main.py` |
 | 缓存 / 限流 / 降级 | JD 内容哈希缓存 + 每 IP 固定窗口限流（429）；Redis 不可用时自动降级 Caffeine，接口语义一致 | `server-java/.../service/` |
@@ -263,7 +263,7 @@ AI 编程工具（Claude Code / Codex / TRAE / WorkBuddy）是我的日常工具
 
 | 项目 | 说明 | 仓库 |
 | :--- | :--- | :--- |
-| 《网上村委会业务办理系统》 | 毕业设计：Spring + MyBatis，8 模块 12 表 88 端点，**366 个 JUnit 5 + Mockito 用例**；BCrypt 加密、JWT 鉴权、HMAC-SHA256 CSRF 令牌、POI 流式导出并对证件号脱敏 | [mo-faa/YXK](https://github.com/mo-faa/YXK) |
+| 《网上村委会业务办理系统》 | 毕业设计：Spring MVC 7.0.2（非 Boot）+ MyBatis，8 模块 12 表 80 处请求映射，**362 个 JUnit 5 + Mockito 用例**；BCrypt 加密、HMAC-SHA256 CSRF 令牌、POI 流式导出并对证件号脱敏 | [mo-faa/YXK](https://github.com/mo-faa/YXK) |
 
 ---
 
