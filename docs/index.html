@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>于翔堃 · AI Agent 应用开发工程师 | 求职作品集</title>
+<meta name="description" content="于翔堃，2026 届计算机本科，AI Agent 应用开发方向。自研 ReAct 运行时、RAG 混合检索、MCP 工具网关，整站已部署上线可实时验证。现居天津，随时到岗。">
+<meta name="author" content="于翔堃">
+<meta property="og:title" content="于翔堃 · AI Agent 应用开发工程师">
+<meta property="og:description" content="不只是简历——整站线上运行，AI 助手可实时对话，代码全部开源可查。">
+<meta property="og:type" content="profile">
+<style>
+  :root{
+    --bg:#f6f5f2;
+    --surface:#ffffff;
+    --ink:#22201d;
+    --ink-2:#5c574f;
+    --ink-3:#8b857b;
+    --line:#e6e2da;
+    --accent:#3f6f5f;
+    --accent-soft:#eaf1ee;
+    --accent-ink:#2f5a4c;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(34,32,29,.04), 0 8px 24px rgba(34,32,29,.05);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-ink);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:860px;margin:0 auto;padding:0 22px}
+
+  /* header */
+  header{padding:72px 0 40px;text-align:center}
+  .avatar{
+    width:76px;height:76px;border-radius:50%;margin:0 auto 20px;
+    background:var(--accent-soft);color:var(--accent-ink);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:600;letter-spacing:1px;border:1px solid var(--line);
+  }
+  h1{margin:0 0 8px;font-size:30px;letter-spacing:.5px;font-weight:650}
+  .sub{color:var(--ink-2);font-size:16px;margin:0 0 18px}
+  .tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:26px}
+  .tag{
+    font-size:12.5px;color:var(--accent-ink);background:var(--accent-soft);
+    border:1px solid #d8e6e0;border-radius:999px;padding:4px 12px;white-space:nowrap;
+  }
+  .lead{
+    max-width:640px;margin:0 auto;color:var(--ink-2);font-size:15.5px;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 22px;box-shadow:var(--shadow);text-align:left;
+  }
+
+  /* sections */
+  section{padding:38px 0}
+  h2{
+    font-size:15px;font-weight:650;color:var(--ink-3);letter-spacing:2px;
+    text-transform:none;margin:0 0 18px;display:flex;align-items:center;gap:10px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .btnrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:26px 0 0}
+  .btn{
+    display:inline-block;padding:11px 20px;border-radius:10px;font-size:14.5px;font-weight:550;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);
+  }
+  .btn:hover{text-decoration:none;transform:translateY(-1px);transition:.15s}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:14px}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;box-shadow:var(--shadow);
+  }
+  .card h3{margin:0 0 6px;font-size:16px;font-weight:620}
+  .card .url{font-size:13px;color:var(--accent-ink);word-break:break-all}
+  .card p{margin:8px 0 0;font-size:14px;color:var(--ink-2)}
+
+  .kv{display:grid;grid-template-columns:96px 1fr;gap:6px 14px;font-size:14.5px}
+  .kv dt{color:var(--ink-3)}
+  .kv dd{margin:0;color:var(--ink-2)}
+
+  ul.clean{margin:0;padding-left:20px;color:var(--ink-2);font-size:14.5px}
+  ul.clean li{margin:5px 0}
+  .pill{
+    display:inline-block;font-size:13px;color:var(--ink-2);background:#faf9f6;
+    border:1px solid var(--line);border-radius:8px;padding:3px 10px;margin:3px 4px 3px 0;
+  }
+
+  .qa{border-left:2px solid var(--accent-soft);padding:2px 0 2px 16px;margin-bottom:20px}
+  .qa strong{display:block;font-size:15px;margin-bottom:4px}
+  .qa p{margin:0;font-size:14.5px;color:var(--ink-2)}
+
+  table{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#faf9f6;font-weight:600;color:var(--ink-3);font-size:13px;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  td{color:var(--ink-2)}
+
+  footer{
+    padding:44px 0 60px;text-align:center;color:var(--ink-3);font-size:13.5px;
+    border-top:1px solid var(--line);margin-top:24px;
+  }
+  footer a{color:var(--ink-2)}
+  .contact{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px 0 6px;font-size:14.5px}
+  .contact span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 14px;box-shadow:var(--shadow)}
+  @media (max-width:560px){
+    header{padding:48px 0 28px}
+    h1{font-size:24px}
+    .kv{grid-template-columns:1fr;gap:2px 0}
+    .kv dd{margin-bottom:10px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="avatar">于</div>
+  <h1>于翔堃 · AI Agent 应用开发工程师</h1>
+  <p class="sub">2026 届计算机本科 · 现居天津（静海）· 随时到岗 · 开放机会</p>
+  <div class="tags">
+    <span class="tag">AI Agent 开发</span>
+    <span class="tag">ReAct 运行时</span>
+    <span class="tag">RAG 检索</span>
+    <span class="tag">MCP 工具网关</span>
+    <span class="tag">Python / FastAPI</span>
+    <span class="tag">Java / Spring Boot</span>
+    <span class="tag">Astro / React</span>
+  </div>
+  <p class="lead">
+    我能把一段模糊的业务需求拆成有序步骤，用 AI Agent + 工具编排把它跑通、上线，并让它挂得住（降级、容错、可追溯）。
+    下面每一个能力都配了<strong>现在就能点开的链接</strong>或代码位置——不用等我解释，您先验证。
+  </p>
+  <div class="btnrow">
+    <a class="btn primary" href="http://101.42.45.157/">打开在线作品集</a>
+    <a class="btn" href="http://101.42.45.157/chat">试一次 AI 对话</a>
+    <a class="btn" href="https://github.com/mo-faa/jianli">查看全部源码</a>
+  </div>
+</header>
+
+<section>
+  <h2>30 秒验证入口</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>在线作品集</h3>
+      <a class="url" href="http://101.42.45.157/">101.42.45.157</a>
+      <p>一人独立开发并部署上线的整站：Astro SSR 前端 + AI 后端 + MySQL。</p>
+    </div>
+    <div class="card">
+      <h3>AI 实时对话</h3>
+      <a class="url" href="http://101.42.45.157/chat">101.42.45.157/chat</a>
+      <p>自研 ReAct 运行时：思考 → 调工具 → 观察 → 回答，SSE 流式逐字输出，过程可见。</p>
+    </div>
+    <div class="card">
+      <h3>游戏世界</h3>
+      <a class="url" href="http://101.42.45.157/game">101.42.45.157/game</a>
+      <p>7 款零引擎原生 Canvas 游戏（约 1.1 万行），代码见仓库 <code>src/lib/game/</code>。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>技术能力</h2>
+  <div class="card">
+    <dl class="kv">
+      <dt>AI 工程</dt><dd>多步推理 Agent 运行时、RAG（BM25 + 向量 RRF 融合，手写非调库）、MCP JSON-RPC 网关、Function Calling、SSE 流式、三级降级容错、轨迹可观测</dd>
+      <dt>后端</dt><dd>Python / FastAPI（全异步）、Java 17 / Spring Boot 3.5、Spring MVC、MyBatis、Data JPA、REST、JWT</dd>
+      <dt>前端</dt><dd>Astro（SSR）、React 18、Vue 3 + Pinia、TypeScript、UnoCSS、Canvas 2D、WCAG 2.1 无障碍</dd>
+      <dt>数据</dt><dd>MySQL 8、Redis（含 Caffeine 降级）、SQLAlchemy 2.0、H2、SQLite</dd>
+      <dt>运维</dt><dd>腾讯云 Windows Server 部署与进程自愈、Docker 多阶段构建 + compose、Nginx、Playwright 端到端验证</dd>
+      <dt>测试</dt><dd>pytest、JUnit 5 + Mockito + MockMvc；毕设交付 362 个单元测试</dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <h2>项目证据</h2>
+  <table>
+    <tr><th>项目</th><th>说明</th></tr>
+    <tr>
+      <td>智能体工坊 + 本作品集站</td>
+      <td>FastAPI + MySQL 后端（约 2k 行 Python）+ Astro SSR 前端（约 27k 行）。ReAct 运行时、7 个业务工具、RAG 混合检索、MCP 网关、SSE 流式、三级降级容错。已部署上线。</td>
+    </tr>
+    <tr>
+      <td>NEON CYBER 游戏平台</td>
+      <td>7 款零引擎原生 Canvas 2D 游戏（约 1.1 万行）：递归回溯迷宫 + BFS 追逐 AI、对象池与离屏预渲染、塔防经济系统、回合制状态机。</td>
+    </tr>
+    <tr>
+      <td>AI 简历匹配平台（Java 侧）</td>
+      <td>Spring Boot 3.5 + Data JPA + Redis/Caffeine 降级缓存 + 限流；粘贴 JD 输出技能匹配度与改进建议；Dockerfile 多阶段构建。</td>
+    </tr>
+    <tr>
+      <td>网上村委会业务办理系统（毕设）</td>
+      <td>Spring MVC 7.0.2（非 Boot）+ MyBatis，8 模块 12 表 80 处请求映射，362 个 JUnit 5 + Mockito 用例；RBAC 权限、POI 导出脱敏、操作留痕。</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>如实说明</h2>
+  <div class="qa">
+    <strong>有没有企业实习经历？</strong>
+    <p>没有。以上均为个人自研与课程、毕设项目，不是企业生产环境代码。我能提供的是另一种证据：它们都在线上跑着，且代码全部开源。</p>
+  </div>
+  <div class="qa">
+    <strong>用没用 Dify / Coze / LangChain？</strong>
+    <p>没用。ReAct 运行时、RAG 融合检索、MCP 网关都是手写实现。若岗位要求这些框架，我有自研实现的底子，迁移成本低于从零学起。</p>
+  </div>
+  <div class="qa">
+    <strong>代码是不是 AI 写的？</strong>
+    <p>AI 编程工具（Claude Code / Codex / TRAE / WorkBuddy）是我的日常工具链。我负责架构、模块拆分、接口契约、测试验收与集成验证。若需要现场手写代码验证能力，随时接受。</p>
+  </div>
+</section>
+
+<section>
+  <h2>联系</h2>
+  <div class="contact">
+    <span>邮箱 3062949899@qq.com</span>
+    <span>QQ 3062949899</span>
+    <span>现居 天津 · 随时到岗</span>
+  </div>
+  <p style="text-align:center;color:var(--ink-3);font-size:14px;margin:14px 0 0">
+    面试时我可以直接演示：打开 <a href="http://101.42.45.157/chat">/chat</a> 提一个问题，您能看到它的思考过程、调用了哪个工具、返回了什么。
+  </p>
+</section>
+
+<footer>
+  <p style="margin:0 0 6px">
+    <a href="https://github.com/mo-faa/jianli">GitHub 仓库</a> ·
+    <a href="http://101.42.45.157/">在线作品集</a> ·
+    <a href="https://github.com/mo-faa/YXK">毕设源码</a>
+  </p>
+  <p style="margin:0">于翔堃 · 2026 届 · AI Agent 应用开发工程师</p>
+</footer>
+
+</div>
+</body>
+</html>
