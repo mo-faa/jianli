@@ -6,8 +6,8 @@ const socialLinkClass =
   "copyable-link inline-block w-fit text-darkslate-100 hover:text-primary-400 hover:translate-x-0.5 transition-all duration-150";
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" class="pad-lg">
-  <div class="h-full flex flex-col gap-3">
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" class="pad-lg contact-card">
+  <div class="h-full flex flex-col gap-2">
     <h2 class="text-white text-xl font-bold m-0">欢迎与我共事！</h2>
     <p class="text-darkslate-300 m-0">{SITE.location.countryName}</p>
     <h2 class="text-darkslate-300 m-0">在这些平台找到我</h2>
@@ -62,7 +62,10 @@ const socialLinkClass =
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+  }
+  :global(.card.pad-lg.contact-card) {
+    padding-block: 0.875rem;
   }
   .copyable-link {
     background: transparent;
