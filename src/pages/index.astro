@@ -55,12 +55,87 @@ export const prerender = true;
       </div>
     </Card>
     <ThemeChangeCard />
-    <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
-      <div class="flex h-full items-center justify-center">
-        <p class="text-3xs text-center whitespace-nowrap">
-          © {new Date().getFullYear()} · 由 于翔堃 制作。
-        </p>
-      </div>
+    <Card
+      colSpan="md:col-span-1"
+      rowSpan="md:row-span-1"
+      class="footer-card"
+    >
+      <p class="footer-sign">
+        <span class="footer-year">© {new Date().getFullYear()}</span>
+        <span class="footer-made">由 于翔堃 制作</span>
+      </p>
     </Card>
   </main>
 </Layout>
+
+<style>
+  /* 页脚署名卡片：原先只有一行 10px 小字，卡片显得空。
+     改为「年份小标签 + 渐变署名」两级排版，字放大、块面填满，
+     渐变取主题变量，切主题（蓝/红/黄/绿/紫）时自动跟随。 */
+  .footer-sign {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    margin: 0;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .footer-year {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.3em;
+    /* 末字后多出一个字距，居中会整体偏左 L/2，用等效左缩进抵消 */
+    text-indent: 0.15em;
+    color: var(--primary-200);
+  }
+
+  .footer-made {
+    display: block;
+    font-size: clamp(0.95rem, 0.5vw + 0.78rem, 1.2rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-indent: 0.04em;
+    white-space: nowrap;
+    background-image: linear-gradient(
+      100deg,
+      var(--darkslate-50) 0%,
+      var(--primary-200) 34%,
+      var(--primary-400) 68%,
+      var(--primary-500) 100%
+    );
+    background-size: 190% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: footer-gradient-shift 9s ease-in-out infinite alternate;
+  }
+
+  @keyframes footer-gradient-shift {
+    from {
+      background-position: 0% 50%;
+    }
+    to {
+      background-position: 100% 50%;
+    }
+  }
+
+  /* 尊重系统「减少动效」偏好 */
+  @media (prefers-reduced-motion: reduce) {
+    .footer-made {
+      animation: none;
+    }
+  }
+
+  /* 卡片根节点由 Card 组件渲染，带的是 Card 自己的作用域属性，
+     本页 scoped 样式选不中，必须用 :global() 提权收窄上下内边距，
+     给两行文字腾出空间（同联系卡片的处理方式）。 */
+  :global(.card.footer-card) {
+    padding-block: 0.75rem;
+  }
+</style>
