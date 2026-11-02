@@ -7,59 +7,51 @@ const socialLinkClass =
 ---
 
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" class="pad-lg">
-  <div class="h-full">
-    <header class="flex items-center">
-      <h2 class="text-white text-xl font-bold">欢迎与我共事！</h2>
-    </header>
-
-    <div class="flex flex-col mt-4">
-      <p class="text-darkslate-300 m-0">{SITE.location.countryName}</p>
-    </div>
-
-    <div class="flex flex-col mt-4 w-fit">
-      <h2 class="text-darkslate-300">在这些平台找到我</h2>
-      <ul class="platform-list">
-        <li>
-          <a
-            href={SITE.links.resume}
-            download="于翔堃-求职简历-2026.pdf"
-            class={socialLinkClass}
-          >
-            下载简历 PDF
-          </a>
-        </li>
-        <li>
-          <a href={SITE.links.github} target="_blank" class={socialLinkClass}>
-            GitHub
-          </a>
-        </li>
-        <li>
-          <button
-            type="button"
-            class={`${socialLinkClass} tracking-tighter`}
-            data-copy={SITE.links.email}
-          >
-            邮箱：{SITE.links.email}
-          </button>
-        </li>
-        <li>
-          <button type="button" class={socialLinkClass} data-copy="3062949899">
-            QQ：3062949899
-          </button>
-        </li>
-        <li>
-          <button type="button" class={socialLinkClass} data-copy="13312137630">
-            手机：13312137630
-          </button>
-        </li>
-        <li>
-          <button type="button" class={socialLinkClass} data-copy="yu040307">
-            微信：yu040307
-          </button>
-        </li>
-      </ul>
-      <span class="sr-only" id="contactCopyLive" aria-live="polite"></span>
-    </div>
+  <div class="h-full flex flex-col gap-3">
+    <h2 class="text-white text-xl font-bold m-0">欢迎与我共事！</h2>
+    <p class="text-darkslate-300 m-0">{SITE.location.countryName}</p>
+    <h2 class="text-darkslate-300 m-0">在这些平台找到我</h2>
+    <ul class="platform-list">
+      <li>
+        <a
+          href={SITE.links.resume}
+          download="于翔堃-求职简历-2026.pdf"
+          class={socialLinkClass}
+        >
+          下载简历 PDF
+        </a>
+      </li>
+      <li>
+        <a href={SITE.links.github} target="_blank" class={socialLinkClass}>
+          GitHub
+        </a>
+      </li>
+      <li>
+        <button
+          type="button"
+          class={`${socialLinkClass} tracking-tighter`}
+          data-copy={SITE.links.email}
+        >
+          邮箱：{SITE.links.email}
+        </button>
+      </li>
+      <li>
+        <button type="button" class={socialLinkClass} data-copy="3062949899">
+          QQ：3062949899
+        </button>
+      </li>
+      <li>
+        <button type="button" class={socialLinkClass} data-copy="13312137630">
+          手机：13312137630
+        </button>
+      </li>
+      <li>
+        <button type="button" class={socialLinkClass} data-copy="yu040307">
+          微信：yu040307
+        </button>
+      </li>
+    </ul>
+    <span class="sr-only" id="contactCopyLive" aria-live="polite"></span>
   </div>
 </Card>
 
@@ -70,7 +62,7 @@ const socialLinkClass =
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 12px;
   }
   .copyable-link {
     background: transparent;
