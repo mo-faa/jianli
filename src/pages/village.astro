@@ -1,0 +1,333 @@
+---
+import BasicLayout from "../layouts/BasicLayout.astro";
+import { SITE } from "../site-config";
+import "../styles/village.css";
+
+const stats = [
+  { value: "8", unit: "个", label: "业务模块" },
+  { value: "12", unit: "张", label: "数据表" },
+  { value: "80", unit: "处", label: "请求映射" },
+  { value: "362", unit: "例", label: "自动化测试" },
+];
+
+const modules = [
+  {
+    title: "村民档案",
+    desc: "居民基础信息的分页检索、详情查看与新增维护，支撑村务台账的日常更新。",
+    points: ["分页与检索", "详情页", "表单校验"],
+  },
+  {
+    title: "公告管理",
+    desc: "公告的发布、草稿与详情浏览，按发布时间组织，村民侧看到的是同一套内容源。",
+    points: ["发布 / 草稿", "时间排序", "富文本内容"],
+  },
+  {
+    title: "村委会成员",
+    desc: "成员档案、职务信息与详情维护，把组织架构也纳入系统管理。",
+    points: ["成员档案", "职务信息", "详情维护"],
+  },
+  {
+    title: "账号与权限",
+    desc: "登录、注册、修改密码，配合角色 / 权限模型和 CSRF Token，区分管理员与普通用户。",
+    points: ["RBAC", "BCrypt", "CSRF"],
+  },
+  {
+    title: "通知与审计",
+    desc: "站内通知带未读计数；关键操作写入操作日志，可按时间回溯谁在什么时候做了什么。",
+    points: ["未读提醒", "操作日志", "请求追踪"],
+  },
+  {
+    title: "系统运维",
+    desc: "系统监控仪表盘、参数配置、数据备份与 Excel 导出，覆盖毕业设计交付后的运维场景。",
+    points: ["监控仪表盘", "数据备份", "POI 导出"],
+  },
+];
+
+const highlights = [
+  {
+    title: "生产 / 本地双数据库",
+    desc: "线上使用 MySQL 8，本地使用 H2 文件库；DatabaseInitializer 启动时自动建表并灌入种子数据，换环境不用手工改表结构。",
+  },
+  {
+    title: "安全基线不是装饰",
+    desc: "BCrypt 存储密码，AuthFilter 拦截未登录请求，CsrfTokenFilter 校验表单令牌，SecurityHeadersInterceptor 补齐安全响应头，MyBatis 全部使用参数绑定。",
+  },
+  {
+    title: "让问题可追溯",
+    desc: "RequestIdFilter 为每个请求分配追踪号，统一异常处理返回可读错误，操作日志落库，排查时能串起一次完整请求。",
+  },
+  {
+    title: "用测试兜住重构",
+    desc: "34 个测试类、362 个用例覆盖 domain / service / web 层，JUnit 5 + Mockito + AssertJ，重构后先跑测试再上线。",
+  },
+];
+
+const stack = [
+  "Java 25",
+  "Spring MVC 7.0.2",
+  "MyBatis 3.5.19",
+  "HikariCP",
+  "MySQL 8",
+  "H2",
+  "JSP / JSTL",
+  "Bootstrap 5",
+  "Apache POI",
+  "Spring Security Crypto",
+  "Tomcat 11",
+  "JUnit 5 + Mockito",
+  "WAR",
+];
+
+const architecture = [
+  {
+    title: "浏览器",
+    desc: "JSP / JSTL 服务端渲染，Bootstrap 5 响应式布局，无前端框架依赖。",
+  },
+  {
+    title: "过滤器链",
+    desc: "AuthFilter 登录拦截 → CsrfTokenFilter 令牌校验 → RequestIdFilter 请求追踪。",
+  },
+  {
+    title: "Web 层",
+    desc: "Spring MVC Controller 负责页面路由，REST API 提供数据接口，统一异常处理。",
+  },
+  {
+    title: "业务层",
+    desc: "Service 划分事务边界，BCrypt 处理密码，RBAC 角色 / 权限模型控制访问。",
+  },
+  {
+    title: "持久层",
+    desc: "MyBatis Mapper + HikariCP 连接池，MySQL 8 与 H2 共用同一套映射。",
+  },
+];
+
+const shots = [
+  {
+    src: "/images/village/home.webp",
+    alt: "网上村委会首页工作台，展示居民、公告、成员与操作日志统计",
+    title: "村务工作台",
+    desc: "四项核心数据、最近公告与操作动态",
+  },
+  {
+    src: "/images/village/residents.webp",
+    alt: "网上村委会村民档案列表页面",
+    title: "村民档案",
+    desc: "分页检索、详情与维护入口",
+  },
+  {
+    src: "/images/village/dashboard.webp",
+    alt: "网上村委会系统监控仪表盘",
+    title: "系统监控",
+    desc: "管理员视角的运行数据与图表",
+  },
+];
+
+const demoUrl = SITE.links.village;
+const sourceUrl = "https://github.com/mo-faa/YXK";
+
+export const prerender = true;
+---
+
+<BasicLayout
+  description="于翔堃的毕业设计：网上村委会业务办理系统。Spring MVC 7 + MyBatis + JSP，8 个业务模块、12 张表、80 处请求映射、362 个自动化测试用例。"
+  title={`${SITE.author.fullName} - 网上村委会`}
+>
+  <main class="village-main">
+    <div class="village-shell">
+      <header class="village-topbar">
+        <a class="village-back" href="/" data-astro-prefetch>← 返回简历</a>
+        <a
+          class="village-topbar-demo"
+          href={demoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          在线演示 ↗
+        </a>
+      </header>
+
+      <section class="village-hero">
+        <div>
+          <p class="village-kicker">毕业设计 · Java 全栈 · 独立交付</p>
+          <h1>
+            网上村委会
+            <span>村务业务办理系统</span>
+          </h1>
+          <p class="village-lede">
+            把村务从纸面搬进一套能跑的业务系统：村民档案、公告发布、成员管理、账号权限、通知审计、备份与导出。
+            使用 Spring MVC 7 + MyBatis + JSP 实现，打包为 WAR 部署在 Tomcat 11，线上使用 MySQL 8。
+          </p>
+          <div class="village-actions">
+            <a
+              class="village-btn village-btn--primary"
+              href={demoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              进入在线系统 <span aria-hidden="true">→</span>
+            </a>
+            <a class="village-btn" href="/" data-astro-prefetch>← 返回简历</a>
+            <a
+              class="village-btn village-btn--quiet"
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              查看源码 ↗
+            </a>
+          </div>
+          <p class="village-note">
+            在线演示托管在个人服务器（Tomcat 11 + MySQL），如暂时无法打开，可查看源码或联系我获取本地运行方式与演示账号。
+          </p>
+        </div>
+
+        <div class="village-seal" aria-hidden="true">
+          <div class="village-seal-ring">
+            <span class="seal-char">村</span>
+            <span class="seal-text">网上村委会</span>
+            <span class="seal-sub">VILLAGE AFFAIRS</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="village-stats" aria-label="项目数据">
+        {
+          stats.map((stat) => (
+            <div class="village-stat">
+              <span class="village-stat-value">
+                {stat.value}
+                <small>{stat.unit}</small>
+              </span>
+              <span class="village-stat-label">{stat.label}</span>
+            </div>
+          ))
+        }
+      </section>
+
+      <section class="village-section">
+        <div class="village-section-head">
+          <p class="village-kicker">What it does</p>
+          <h2>从档案到公告，一条村务业务链</h2>
+        </div>
+        <div class="village-modules">
+          {
+            modules.map((module, index) => (
+              <article class="village-module">
+                <span class="village-module-no">{String(index + 1).padStart(2, "0")}</span>
+                <h3>{module.title}</h3>
+                <p>{module.desc}</p>
+                <ul>
+                  {module.points.map((point) => (
+                    <li>{point}</li>
+                  ))}
+                </ul>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="village-section village-split">
+        <div>
+          <p class="village-kicker">Stack</p>
+          <h2>技术栈</h2>
+          <div class="village-chips">
+            {
+              stack.map((item) => (
+                <span>{item}</span>
+              ))
+            }
+          </div>
+        </div>
+        <div>
+          <p class="village-kicker">Architecture</p>
+          <h2>分层与边界</h2>
+          <ol class="village-flow">
+            {
+              architecture.map((layer) => (
+                <li>
+                  <b>{layer.title}</b>
+                  <span>{layer.desc}</span>
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+      </section>
+
+      <section class="village-section">
+        <div class="village-section-head">
+          <p class="village-kicker">Highlights</p>
+          <h2>不只是 CRUD：可靠性也做了</h2>
+        </div>
+        <div class="village-highlights">
+          {
+            highlights.map((highlight) => (
+              <article class="village-highlight">
+                <h3>{highlight.title}</h3>
+                <p>{highlight.desc}</p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="village-section">
+        <div class="village-section-head">
+          <p class="village-kicker">Screens</p>
+          <h2>界面预览</h2>
+        </div>
+        <div class="village-shots">
+          {
+            shots.map((shot) => (
+              <figure class="village-shot">
+                <img
+                  src={shot.src}
+                  alt={shot.alt}
+                  width="1280"
+                  height="800"
+                  loading="eager"
+                  decoding="async"
+                />
+                <figcaption>
+                  <b>{shot.title}</b>
+                  <span>{shot.desc}</span>
+                </figcaption>
+              </figure>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="village-cta">
+        <div>
+          <p class="village-kicker">Try it yourself</p>
+          <h2>在线走一遍村务流程</h2>
+          <p>
+            登录后可以新增村民档案、发布公告、查看操作日志，管理员账号还能进入系统监控与数据备份。
+            如果你更想看实现，源码仓库里同时有建表脚本、测试和部署说明。
+          </p>
+        </div>
+        <div class="village-actions">
+          <a
+            class="village-btn village-btn--primary"
+            href={demoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            进入在线系统 <span aria-hidden="true">→</span>
+          </a>
+          <a class="village-btn" href="/" data-astro-prefetch>← 返回简历</a>
+        </div>
+      </section>
+
+      <footer class="village-footer">
+        <span>© {new Date().getFullYear()} {SITE.author.fullName} · 网上村委会</span>
+        <div>
+          <a href="/" data-astro-prefetch>返回简历</a>
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">源码仓库</a>
+        </div>
+      </footer>
+    </div>
+  </main>
+</BasicLayout>

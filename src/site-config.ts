@@ -23,6 +23,8 @@ export const SITE = {
     game: "/game",
     chat: "/chat",
     resume: "/resume.pdf",
+    village: "http://101.42.45.157:8080/",
+    villagePage: "/village",
   },
   status: {
     now: "找工作ing...",
