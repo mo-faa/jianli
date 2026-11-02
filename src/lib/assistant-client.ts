@@ -158,7 +158,8 @@ export function 创建助手对话(元素: 元素集合): void {
 
     const { 气泡, 内容 } = 添加气泡("assistant");
     const 过程 = 添加思考过程();
-    气泡.appendChild(过程);
+    // 思考过程置顶：插入到回答内容之前，使「助手的思考过程」显示在答案上方
+    气泡.insertBefore(过程, 内容);
     const 等待行 = 添加过程行(过程, 助手文案.状态.思考中);
     const 思考行表 = new Map<number, HTMLElement>();
     let 答案文本 = "";
